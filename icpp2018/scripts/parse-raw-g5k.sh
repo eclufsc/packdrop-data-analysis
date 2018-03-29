@@ -63,7 +63,7 @@ function parse_single {
 function init_outfiles {
   local i=0
   for outfile in ${METRIC_FILES[@]}; do
-    OUTPUT_FILES[$i]="${BASE_DIR}/${PARSE_DIR}/${outfile}${OUT_EXT}"
+    OUTPUT_FILES[$i]="${BASE_DIR}/${PARSE_DIR}/${APP}_${outfile}${OUT_EXT}"
     ((i++))
   done
 }
