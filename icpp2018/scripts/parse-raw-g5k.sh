@@ -1,78 +1,116 @@
 #!/bin/bash
 
 # Experiment Constants
-declare -a LBs=("distributed" "greedy" "nolb" "packdrop" "refine")
+declare -a LBs=("dist" "greedy" "nolb" "pdlb" "refine")
 declare -a APPs=("leanmd" "lbtest")
+declare -a LEANMD_PERIODS=("long" "short")
+declare -a LBTEST_TOPOS=("mesh2d" "mesh3d" "ring")
 
 # Output Content
 # This script assumes these variables are static...
 # They are here presented for better readability, any changes on them must be met with changes to the respectives functions "parse_app_time" and "parse_step_time"
 declare -a METRIC_FILES=("apptime" "steptime")
-declare -a STEP_METRICS=("step_time")
-declare -a APP_METRICS=("app_time")
-declare -a COMMON_METRICS=("sched" "app")
+
+declare -a COMMON_METRICS="sched,app"
+
+declare -a STEP_METRICS=",step_time"
+declare -a APP_METRICS=",app_time"
+
+declare -a LEANMD_METRICS=",period"
+declare -a LBTEST_METRICS=",topo"
 
 # Organization constants
 declare -a IN_EXT=".res" # Input file extension
-declare -a BASE_DIR="experiments/g5k" # Experiments directory
-declare -a RAW_DIR="raw-data" # Raw data subdirectory
+declare -a BASE_DIR="experiments/g5k/" # Experiments directory
+declare -a RAW_DIR="raw-data/" # Raw data subdirectory
+
+declare -a LEANMD_DIR="${BASE_DIR}${RAW_DIR}${APPs[0]}/"
+declare -a LBTEST_DIR="${BASE_DIR}${RAW_DIR}${APPs[1]}/"
 
 #Output constants
 declare -a OUT_EXT=".csv" # Output file extension
-declare -a PARSE_DIR="parsed-data" # Parsed data subdirectory
-declare -a OUTPUT_FILES=() # A list of output files created dynamically by the "init_outfiles" functions
+declare -a PARSE_DIR="parsed-data/" # Parsed data subdirectory
 
-# Prints the header variable into the file while deleting its previous contents
-# $1 is the output file
-# $2 is the header array contents
-function make_csv_header {
-  local OUT=$1
-  shift
-  
-  HDR=$(printf ",%s" "${COMMON_METRICS[@]}")
-  HDR=${HDR:1}$(printf ",%s" "$@")
-  echo $HDR > $OUT
+# Gather the Application Metrics from the input file
+# $1 is the input file
+# $2 is the scheduling policy
+# $3 is the wild metric
+# $4 is the executed application
+# $5 is the output file
+function parse_app_time {
+  awk -v outfile=$5 -v sched=$2 -v app=$4 -v wildmetric=$3 '/Total application time/{print sched","app","wildmetric","$4 >> outfile; close(outfile)}' $1
 }
 
 # Gather the Application Metrics from the input file
 # $1 is the input file
 # $2 is the scheduling policy
-# $3 is the output file
+# $3 is the wild metric
 # $4 is the executed application
-function parse_app_time {
-  awk -v outfile=$3 -v sched=$2 -v app=$4 '/Total application time/{print sched","app","$4 >> outfile; close(outfile)}' $1
+# $5 is the output file
+function parse_lbtest_app_time {
+  awk -v outfile=$5 -v sched=$2 -v app=$4 -v wildmetric=$3 '/STEP.150/{print sched","app","wildmetric","$5 >> outfile; close(outfile)}' $1
 }
+
 
 # Gather the Simulation Step Metrics from the input file
 # $1 is the input file
 # $2 is the scheduling policy
-# $3 is the output file
+# $3 is the wild metric
 # $4 is the executed application
+# $5 is the output file
 function parse_step_time {
-  awk -v outfile=$3 -v sched=$2 -v app=$4 '/Benchmark Time/{print sched","app","$5 >> outfile; close(outfile)}' $1
-}
-
-# Parse the full Charm++ log file
-# $1 is the input file
-# $2 is the scheduling policy associated with the file
-# $3 is the application associated with the file
-function parse_single {
-  parse_app_time $1 $2 ${OUTPUT_FILES[0]} $3
-  parse_step_time $1 $2 ${OUTPUT_FILES[1]} $3
-}
-
-function init_outfiles {
-  local i=0
-  for outfile in ${METRIC_FILES[@]}; do
-    OUTPUT_FILES[$i]="${BASE_DIR}/${PARSE_DIR}/${outfile}${OUT_EXT}"
-    ((i++))
-  done
+  awk -v outfile=$5 -v sched=$2 -v app=$4 -v wildmetric=$3 '/Benchmark Time/{print sched","app","wildmetric","$5 >> outfile; close(outfile)}' $1
 }
 
 function create_headers {
-  init_outfiles
-  make_csv_header ${OUTPUT_FILES[0]} ${APP_METRICS[@]}
-  make_csv_header ${OUTPUT_FILES[1]} ${STEP_METRICS[@]}
+  for metric in ${METRIC_FILES[@]}; do
+    for app in ${APPs[@]}; do
+      OUTPUT_FILE="${BASE_DIR}${PARSE_DIR}${app}_${metric}${OUT_EXT}"
+      
+      OUTPUT_FILE_HDR="${COMMON_METRICS}"
+      
+      if [[ $app = "${APPs[0]}" ]]; then
+        OUTPUT_FILE_HDR="${OUTPUT_FILE_HDR}${LEANMD_METRICS}"
+      fi
+      
+      if [[ $app = "${APPs[1]}" ]]; then
+        OUTPUT_FILE_HDR="${OUTPUT_FILE_HDR}${LBTEST_METRICS}"
+      fi
+      
+      if [[ $metric = "${METRIC_FILES[0]}" ]]; then
+        OUTPUT_FILE_HDR="${OUTPUT_FILE_HDR}${APP_METRICS}"
+      fi
+      
+      if [[ $metric = "${METRIC_FILES[1]}" ]]; then
+        OUTPUT_FILE_HDR="${OUTPUT_FILE_HDR}${STEP_METRICS}"
+      fi
+
+      echo "${OUTPUT_FILE_HDR}" > "${OUTPUT_FILE}"
+      
+      for lb in ${LBs[@]}; do
+        if [[ $app = "${APPs[0]}" ]]; then # LeanMD
+          for period in "${LEANMD_PERIODS[@]}"; do
+            FILE="${LEANMD_DIR}${app}_${period}_${lb}${IN_EXT}"
+
+            if [[ $metric = "${METRIC_FILES[0]}" ]]; then
+              parse_app_time $FILE $lb $period $app $OUTPUT_FILE
+            else
+              parse_step_time $FILE $lb $period $app $OUTPUT_FILE
+            fi
+          done
+        fi
+        if [[ $app = "${APPs[1]}" ]]; then # LbTest
+          for topo in "${LBTEST_TOPOS[@]}"; do
+            FILE="${LBTEST_DIR}${app}_${topo}_${lb}${IN_EXT}"
+
+            if [[ $metric = "${METRIC_FILES[0]}" ]]; then
+              parse_lbtest_app_time $FILE $lb $topo $app $OUTPUT_FILE
+            fi
+          done
+        fi
+      done 
+    done
+  done
 }
 
 ############################# Execution flow ##############################
@@ -81,11 +119,3 @@ mkdir -p $BASE_DIR/$PARSE_DIR
 rm -rf $BASE_DIR/$PARSE_DIR/*
 
 create_headers
-
-for lb in ${LBs[@]}; do
-  for app in ${APPs[@]}; do
-    FILE="${BASE_DIR}/${RAW_DIR}/${app}_${lb}${IN_EXT}"
-  
-    parse_single $FILE $lb app
-  done
-done
