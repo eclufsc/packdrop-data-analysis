@@ -2,7 +2,7 @@
 
 # Experiment Constants
 declare -a LBs=("distributed" "greedy" "nolb" "packdrop" "refine")
-declare -a APP="leanmd"
+declare -a APPs=("leanmd" "lbtest")
 
 # Output Content
 # This script assumes these variables are static...
@@ -10,7 +10,7 @@ declare -a APP="leanmd"
 declare -a METRIC_FILES=("apptime" "steptime")
 declare -a STEP_METRICS=("step_time")
 declare -a APP_METRICS=("app_time")
-declare -a COMMON_METRICS=("sched")
+declare -a COMMON_METRICS=("sched" "app")
 
 # Organization constants
 declare -a IN_EXT=".res" # Input file extension
@@ -38,32 +38,33 @@ function make_csv_header {
 # $1 is the input file
 # $2 is the scheduling policy
 # $3 is the output file
+# $4 is the executed application
 function parse_app_time {
-  awk -v outfile=$3 -v sched=$2 '/Total application time/{print sched","$4 >> outfile; close(outfile)}' $1
+  awk -v outfile=$3 -v sched=$2 -v app=$4 '/Total application time/{print sched","app","$4 >> outfile; close(outfile)}' $1
 }
 
 # Gather the Simulation Step Metrics from the input file
 # $1 is the input file
 # $2 is the scheduling policy
 # $3 is the output file
+# $4 is the executed application
 function parse_step_time {
-  awk -v outfile=$3 -v sched=$2 '/Benchmark Time/{print sched","$5 >> outfile; close(outfile)}' $1
+  awk -v outfile=$3 -v sched=$2 -v app=$4 '/Benchmark Time/{print sched","app","$5 >> outfile; close(outfile)}' $1
 }
 
 # Parse the full Charm++ log file
 # $1 is the input file
 # $2 is the scheduling policy associated with the file
+# $3 is the application associated with the file
 function parse_single {
-  make_csv_header $3 ${APP_METRICS[@]}
-  make_csv_header $4 ${STEP_METRICS[@]}
-  parse_app_time $1 $2 ${OUTPUT_FILES[0]}
-  parse_step_time $1 $2 ${OUTPUT_FILES[1]}
+  parse_app_time $1 $2 ${OUTPUT_FILES[0]} $3
+  parse_step_time $1 $2 ${OUTPUT_FILES[1]} $3
 }
 
 function init_outfiles {
   local i=0
   for outfile in ${METRIC_FILES[@]}; do
-    OUTPUT_FILES[$i]="${BASE_DIR}/${PARSE_DIR}/${APP}_${outfile}${OUT_EXT}"
+    OUTPUT_FILES[$i]="${BASE_DIR}/${PARSE_DIR}/${outfile}${OUT_EXT}"
     ((i++))
   done
 }
@@ -82,7 +83,9 @@ rm -rf $BASE_DIR/$PARSE_DIR/*
 create_headers
 
 for lb in ${LBs[@]}; do
-  FILE="${BASE_DIR}/${RAW_DIR}/${APP}_${lb}${IN_EXT}"
+  for app in ${APPs[@]}; do
+    FILE="${BASE_DIR}/${RAW_DIR}/${app}_${lb}${IN_EXT}"
   
-  parse_single $FILE $lb
+    parse_single $FILE $lb app
+  done
 done
