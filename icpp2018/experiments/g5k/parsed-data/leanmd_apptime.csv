@@ -18,7 +18,6 @@ dist,leanmd,short,27.637462
 dist,leanmd,short,27.709038
 dist,leanmd,short,27.702734
 dist,leanmd,short,27.652334
-greedy,leanmd,long,104.386747
 greedy,leanmd,long,73.415017
 greedy,leanmd,long,72.690747
 greedy,leanmd,long,72.849202
@@ -38,7 +37,6 @@ greedy,leanmd,short,118.611276
 greedy,leanmd,short,118.179479
 greedy,leanmd,short,118.296008
 greedy,leanmd,short,118.538595
-nolb,leanmd,long,75.787516
 nolb,leanmd,long,29.511307
 nolb,leanmd,long,29.562016
 nolb,leanmd,long,29.462018
