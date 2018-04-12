@@ -23,6 +23,9 @@ class ExperimentAnalyzer:
 
   def analyze(self):
     for file_group, action_group in self.groups.items():      
+      if InputActionGroup.ControlAction.BEFORE_PARSE in action_group.control_actions:
+        action_group.control_actions[InputActionGroup.ControlAction.BEFORE_PARSE]()
+
       for filename in file_group.files:
         full_path = self.raw + filename
         self.parse_file(full_path, action_group)

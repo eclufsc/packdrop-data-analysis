@@ -38,6 +38,7 @@ class InputActionGroup:
 
   class ControlAction(Enum):
     AFTER_PARSE = 1
+    BEFORE_PARSE = 2
 
   def __init__(self):
     self.action_map = dict()
