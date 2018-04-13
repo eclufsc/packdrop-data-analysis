@@ -30,18 +30,19 @@ class ExperimentOrganizer:
     ExperimentType.Steptime: list_append(common_hdr[:], 'step_time')
   }
   
-  outfiles = {
-    ExperimentType.Schedtime: DirectoryResolver.output_abspath('sdumont', 'sdumont-schedtime.csv'),
-    ExperimentType.Apptime: DirectoryResolver.output_abspath('sdumont', 'sdumont-apptime.csv'),
-    ExperimentType.Steptime: DirectoryResolver.output_abspath('sdumont', 'sdumont-steptime.csv')
-  }
+  def outfiles(experiment_name):
+    return {
+      ExperimentType.Schedtime: DirectoryResolver.output_abspath(experiment_name, experiment_name + '-schedtime.csv'),
+      ExperimentType.Apptime: DirectoryResolver.output_abspath(experiment_name, experiment_name + '-apptime.csv'),
+      ExperimentType.Steptime: DirectoryResolver.output_abspath(experiment_name, experiment_name + '-steptime.csv')
+    }
 
   def metric_csv_position(metric):
     if(metric in ExperimentOrganizer.metric_position):
       return ExperimentOrganizer.metric_position[metric]
     return 4
 
-class SDumontWrapper:
+class ExperimentWrapper:
   """SDumontWrapper keeps the analysis object and all the outputters linked to a single action_group for the sdumont data"""
   
   def open_all(self):
@@ -59,14 +60,19 @@ class SDumontWrapper:
     for etype in ExperimentType:
       self.outputters[etype].write_header(ExperimentOrganizer.headers[etype])
 
-  def set_files_first_exp(self, application_name, sizes):
+  def set_sdumont_initial_files(self, application_name, sizes):
     """Sets the file group of the first round of experiments that will be analyzed"""
     file_group = InputFileGroup('-', 'out', ['lb-test-results'], [application_name], sizes)
     self.analysis.map_group(file_group, self.action_register)
 
-  def set_files_second_exp(self, frequencies, scheds):
+  def set_sdumont_freq_files(self, frequencies, scheds):
     """Sets the file group of the first round of experiments that will be analyzed. This function should not be needed if the name patterns would be carefully looked at"""
     file_group = InputFileGroup('_', 'res', ['3_freq_leanmd'], frequencies, scheds)
+    self.analysis.map_group(file_group, self.action_register)
+
+  def set_g5k_files(self, app, wildvals, scheds):
+    """Sets the file group of the first round of experiments that will be analyzed. This function should not be needed if the name patterns would be carefully looked at"""
+    file_group = InputFileGroup('_', 'res', [app], wildvals, scheds)
     self.analysis.map_group(file_group, self.action_register)
 
   def print_line(self, etype):
@@ -76,17 +82,17 @@ class SDumontWrapper:
     for etype in etypes:
       self.outputters[etype].attributes[ExperimentOrganizer.metric_csv_position(metric)] = val
 
-  def __init__(self):
+  def __init__(self, experiment_name):
     self.outputters = {}
-    self.analysis = ExperimentAnalyzer('sdumont')
+    self.analysis = ExperimentAnalyzer(experiment_name)
     self.action_register = InputActionGroup()
 
     for etype in ExperimentType:
-      self.outputters[etype] = CsvOutputter(ExperimentOrganizer.outfiles[etype], ExperimentOrganizer.headers[etype])
+      self.outputters[etype] = CsvOutputter(ExperimentOrganizer.outfiles(experiment_name)[etype], ExperimentOrganizer.headers[etype])
     self.action_register.map_control_action(InputActionGroup.ControlAction.BEFORE_PARSE, self.open_all)
     self.action_register.map_control_action(InputActionGroup.ControlAction.AFTER_PARSE, self.close_all)
 
-class SDumontActions:
+class ExperimentActions:
   """Class that executes all actions to notify the outputters to change their state and write lines into the files"""
 
   def found_sched(self, line, result):
