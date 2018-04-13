@@ -14,3 +14,6 @@ class DirectoryResolver:
 
   def parsed_data_dir(experiment_name):
     return DirectoryResolver.join_experiment_path(experiment_name, DirectoryResolver.parsed_data_dirname)
+
+  def output_abspath(experiment_name, outfile_name):
+    return os.path.join(DirectoryResolver.join_experiment_path(experiment_name, DirectoryResolver.parsed_data_dirname), outfile_name)

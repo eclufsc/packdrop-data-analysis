@@ -10,7 +10,7 @@ class CsvOutputter:
     self.fref.write(','.join(self.attributes) + "\n")
 
   def open(self):
-    self.fref = open(self.filename, 'r')
+    self.fref = open(self.filename, 'w')
     
   def write_header(self, header_vars):
     with open(self.filename, 'w') as fp:
