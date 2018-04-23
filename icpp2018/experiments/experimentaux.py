@@ -147,7 +147,7 @@ class CharmLogTriggers:
       r'step \d+? finished at .+? duration (.+?) ': actor.found_sched_time,
       r'LB Period:(\d+)': actor.found_leanmd_period,
       r' numPes (\d+)': actor.found_leanmd_platsize,
-      r'TIME\s+?PER\s+?STEP\s+?150\s+?(.+?) ': actor.found_apptime,
+      r'TIME\sPER\sSTEP\s150\s+?(.+?)\s+?': actor.found_apptime,
       r'Total application time (.+?) s': actor.found_apptime,
       r'Step \d+? Benchmark Time (.+?) ': actor.found_leanmd_step_time
     }
